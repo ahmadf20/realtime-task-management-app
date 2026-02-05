@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
 /*
@@ -13,6 +14,6 @@ use Illuminate\Support\Facades\Broadcast;
 |
 */
 
-Broadcast::channel('tasks.{userId}', function ($user, $userId) {
-    return $user && $userId && (int) $user->id === (int) $userId;
+Broadcast::channel('tasks.{userId}', function (User $user, int $userId) {
+    return $user->id === $userId;
 });
