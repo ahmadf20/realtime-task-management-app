@@ -57,7 +57,7 @@ services:
     working_dir: /var/www
     volumes:
       - ./backend:/var/www
-    command: php artisan reverb:start --debug
+    command: php artisan reverb:start
     ports:
       - "8080:8080"
     depends_on:
