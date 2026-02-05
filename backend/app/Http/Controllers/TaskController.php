@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TaskDeleted;
+use App\Events\TaskStatusUpdated;
 use App\Http\Resources\BaseResource;
+use App\Jobs\ProcessTaskCreated;
 use App\Models\Task;
 use Illuminate\Http\Request;
 
@@ -32,6 +35,9 @@ class TaskController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
+        // Dispatch the queue job for processing
+        ProcessTaskCreated::dispatch($task);
+
         return new BaseResource($task);
     }
 
@@ -43,7 +49,11 @@ class TaskController extends Controller
             'status' => ['required', 'in:pending,in_progress,done'],
         ]);
 
+        $oldStatus = $task->status;
         $task->update($data);
+
+        // Broadcast the status update event
+        TaskStatusUpdated::dispatch($task, $oldStatus);
 
         return new BaseResource($task);
     }
@@ -52,7 +62,13 @@ class TaskController extends Controller
     {
         $this->authorize('delete', $task);
 
+        $taskId = $task->id;
+        $userId = $task->user_id;
+
         $task->delete();
+
+        // Broadcast the task deleted event
+        TaskDeleted::dispatch($taskId, $userId);
 
         return response()->noContent();
     }

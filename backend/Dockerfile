@@ -8,9 +8,12 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    libzip-dev
+    libzip-dev \
+    libssl-dev \
+    redis-server
 
 RUN docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl
+RUN pecl install redis && docker-php-ext-enable redis
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -18,6 +21,6 @@ WORKDIR /var/www
 
 COPY . .
 
-RUN composer install
+RUN composer install --no-scripts
 
 RUN chown -R www-data:www-data /var/www
