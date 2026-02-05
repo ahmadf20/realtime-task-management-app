@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
     container_name: laravel_backend
+    restart: always
     working_dir: /var/www
     volumes:
       - ./backend:/var/www
@@ -39,6 +40,7 @@ services:
     build:
       context: ./backend
     container_name: laravel_queue
+    restart: always
     working_dir: /var/www
     volumes:
       - ./backend:/var/www
@@ -55,6 +57,7 @@ services:
       context: ./backend
     container_name: laravel_reverb
     working_dir: /var/www
+    restart: always
     volumes:
       - ./backend:/var/www
     command: php artisan reverb:start
@@ -66,6 +69,20 @@ services:
       - .env
     environment:
       REVERB_HOST: 0.0.0.0
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: nextjs_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
 
 volumes:
   db_data:
