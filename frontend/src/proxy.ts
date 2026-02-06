@@ -9,6 +9,12 @@ export function proxy(request: NextRequest) {
 
   const token = request.cookies.get("token")?.value;
 
+  if (pathname === "/") {
+    return NextResponse.redirect(
+      new URL(token ? "/tasks" : "/login", request.url),
+    );
+  }
+
   const isPublicRoute = publicRoutes.some((route) =>
     pathname.startsWith(route),
   );

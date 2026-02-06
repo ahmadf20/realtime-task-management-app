@@ -38,9 +38,8 @@ export const useTasks = () => {
   });
 
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
-  const [updateTaskStatus, { isLoading: isUpdating }] =
-    useUpdateTaskStatusMutation();
-  const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+  const [updateTaskStatus] = useUpdateTaskStatusMutation();
+  const [deleteTask] = useDeleteTaskMutation();
   const [logoutMutation] = useLogoutMutation();
 
   const { state, error: wsError } = useSelector(
@@ -114,14 +113,8 @@ export const useTasks = () => {
       echoInstance.current = null;
     }
 
-    try {
-      await logoutMutation().unwrap();
-      router.push("/login");
-    } catch (error) {
-      console.error("Logout failed", error);
-      // Force redirect anyway
-      router.push("/login");
-    }
+    await logoutMutation().unwrap();
+    router.replace("/login");
   };
 
   const handlePageChange = (page: number) => {
@@ -132,7 +125,7 @@ export const useTasks = () => {
     tasks,
     isLoading,
     isFetching,
-    isSaving: isCreating || isUpdating || isDeleting,
+    isSaving: isCreating,
     error,
     pagination,
     user,

@@ -20,7 +20,7 @@ export const authApi = apiSlice.injectEndpoints({
         method: "POST",
         body: credentials,
       }),
-      async onQueryStarted(arg, { queryFulfilled }) {
+      async onQueryStarted(_, { queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
           tokenUtils.setToken(data.access_token);
@@ -34,12 +34,10 @@ export const authApi = apiSlice.injectEndpoints({
         url: "/api/logout",
         method: "POST",
       }),
-      async onQueryStarted(arg, { queryFulfilled }) {
+      async onQueryStarted(_, { queryFulfilled }) {
         try {
           await queryFulfilled;
-          tokenUtils.removeToken();
-        } catch {
-          // Even if logout fails on server, we might want to clear local token
+        } finally {
           tokenUtils.removeToken();
         }
       },

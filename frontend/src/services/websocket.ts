@@ -10,13 +10,6 @@ import {
 import { Task } from "@/types/task";
 import { tasksApi } from "../store/services/tasksApi";
 
-declare global {
-  interface Window {
-    Pusher: typeof Pusher;
-    Echo: typeof Echo;
-  }
-}
-
 export const initializeWebSocket = (
   token: string,
   dispatch: AppDispatch,
@@ -25,19 +18,17 @@ export const initializeWebSocket = (
   dispatch(setConnecting());
 
   try {
-    window.Pusher = Pusher;
-
     Pusher.logToConsole = process.env.NODE_ENV === "development";
 
     const echo = new Echo({
       broadcaster: "reverb",
-      key: process.env.NEXT_PUBLIC_REVERB_APP_KEY || "laravel-key",
-      wsHost: process.env.NEXT_PUBLIC_REVERB_HOST || "localhost",
-      wsPort: parseInt(process.env.NEXT_PUBLIC_REVERB_PORT || "8080"),
-      wssPort: parseInt(process.env.NEXT_PUBLIC_REVERB_PORT || "8080"),
+      key: process.env.NEXT_PUBLIC_REVERB_APP_KEY,
+      wsHost: process.env.NEXT_PUBLIC_REVERB_HOST,
+      wsPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT),
+      wssPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT),
       forceTLS: false,
       enabledTransports: ["ws", "wss"],
-      authEndpoint: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/broadcasting/auth`,
+      authEndpoint: `${process.env.NEXT_PUBLIC_API_URL}/api/broadcasting/auth`,
       auth: {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -46,7 +37,6 @@ export const initializeWebSocket = (
       },
     });
 
-    // Listen for task events on private channel
     echo
       .private(`tasks.${userId}`)
       .listen(".task.created", () => {
@@ -72,21 +62,16 @@ export const initializeWebSocket = (
         },
       );
 
-    // Listen for connection events
     echo.connector.pusher.connection.bind("connected", () => {
       dispatch(setConnected());
-      // dispatch(setEcho(echo)); // setEcho not implemented in slice and echo is non-serializable
-      console.log("Connected to WebSocket!");
     });
 
     echo.connector.pusher.connection.bind("disconnected", () => {
       dispatch(setDisconnected());
-      console.log("Disconnected from WebSocket");
     });
 
     echo.connector.pusher.connection.bind("error", (error: Error) => {
       dispatch(setError(error.message));
-      console.log(`WebSocket error: ${error.message}`);
     });
 
     return echo;
@@ -99,7 +84,5 @@ export const initializeWebSocket = (
 };
 
 export const disconnectWebSocket = (echo: Echo<"reverb"> | null) => {
-  if (echo) {
-    echo.disconnect();
-  }
+  echo?.disconnect();
 };
