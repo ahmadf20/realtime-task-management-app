@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store";
 import { login } from "../../store/slices/authSlice";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const dispatch = useDispatch<AppDispatch>();
 
   const { isLoading, error, isAuthenticated } = useSelector(
@@ -21,11 +20,11 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const email = (e.currentTarget as HTMLFormElement).email.value;
-    const password = (e.currentTarget as HTMLFormElement).password.value;
+    const email = e.currentTarget.email.value;
+    const password = e.currentTarget.password.value;
 
     dispatch(login({ email, password }));
   };

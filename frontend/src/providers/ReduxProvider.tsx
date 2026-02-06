@@ -4,14 +4,14 @@ import { Provider } from "react-redux";
 import { store } from "../store";
 import { useEffect } from "react";
 import { getCurrentUser } from "../store/slices/authSlice";
+import { tokenUtils } from "../utils/tokenUtils";
 
 interface ReduxProviderProps {
   children: React.ReactNode;
 }
 
 function AuthInitializer() {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = tokenUtils.getToken();
 
   useEffect(() => {
     if (token) {

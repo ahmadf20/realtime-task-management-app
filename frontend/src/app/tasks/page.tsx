@@ -5,7 +5,6 @@ import TaskForm from "../../components/TaskForm";
 import TaskList from "../../components/TaskList";
 import Header from "../../components/Header";
 import Pagination from "../../components/ui/Pagination";
-import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 export default function TasksPage() {
   const {
@@ -22,25 +21,6 @@ export default function TasksPage() {
     handleLogout,
     handlePageChange,
   } = useTasks();
-
-  // Show loading spinner during auth state transitions or initial task fetch
-  // Show loading spinner during auth logic, but not for subsequent task fetches
-  // We check tasks.length to allow initial load spinner, but avoid it if we have potential stale data to show
-  // However, simpler for now: Only blocking load if we're technically "loading" (auth check)
-  // OR if we are fetching tasks and have NO tasks to show yet.
-  if (!user) {
-    // Auth loading or initial user load
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <LoadingSpinner
-            className="h-12 w-12 text-indigo-600"
-            text="Loading..."
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

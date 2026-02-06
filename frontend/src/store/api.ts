@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import { tokenUtils } from "@/utils/tokenUtils";
 
 class ApiService {
   private api: AxiosInstance;
@@ -15,8 +16,7 @@ class ApiService {
     // Request interceptor to add auth token
     this.api.interceptors.request.use(
       (config) => {
-        const token =
-          typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const token = tokenUtils.getToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -33,12 +33,13 @@ class ApiService {
       (error) => {
         if (error.response?.status === 401) {
           // Token expired or invalid
-          // Don't redirect if we're already trying to login
-          const isLoginRequest =
+          // Don't redirect if we're already trying to login or getting current user
+          const isAuthRequest =
             error.config?.url?.includes("/login") ||
-            error.config?.url?.includes("/api/login");
-          if (typeof window !== "undefined" && !isLoginRequest) {
-            localStorage.removeItem("token");
+            error.config?.url?.includes("/api/login") ||
+            error.config?.url?.includes("/api/user");
+          if (typeof window !== "undefined" && !isAuthRequest) {
+            tokenUtils.removeToken();
             window.location.href = "/login";
           }
         }

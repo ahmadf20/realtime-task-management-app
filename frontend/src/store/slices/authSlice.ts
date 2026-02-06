@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../api";
 import { AxiosError } from "axios";
 import { HttpResponseError } from "@/types/http";
+import { tokenUtils } from "@/utils/tokenUtils";
 
 export type User = {
   id: number;
@@ -32,9 +33,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
 };
 
-// Load token from localStorage on initialization
-const token =
-  typeof window !== "undefined" ? localStorage.getItem("token") : null;
+const token = tokenUtils.getToken();
 
 export const login = createAsyncThunk(
   "auth/login",
@@ -46,12 +45,9 @@ export const login = createAsyncThunk(
       const response = await api.post<LoginResponse>("/api/login", credentials);
       const { access_token, user } = response.data;
 
-      // Store token in localStorage
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", access_token);
-      }
+      tokenUtils.setToken(access_token);
 
-      return { token, user };
+      return { token: access_token, user };
     } catch (e) {
       const error = e as AxiosError<HttpResponseError>;
       return rejectWithValue(error?.response?.data?.message || "Login failed");
@@ -64,10 +60,7 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await api.post("/api/logout");
-      // Remove token from localStorage
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-      }
+      tokenUtils.removeToken();
     } catch (e) {
       const error = e as AxiosError<HttpResponseError>;
       return rejectWithValue(error.response?.data?.message || "Logout failed");
@@ -83,6 +76,10 @@ export const getCurrentUser = createAsyncThunk(
       return response.data;
     } catch (e) {
       const error = e as AxiosError<HttpResponseError>;
+
+      if (error.response?.status === 401) {
+        return rejectWithValue("Session expired");
+      }
       return rejectWithValue(
         error.response?.data?.message || "Failed to get user",
       );
@@ -104,17 +101,13 @@ const authSlice = createSlice({
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
       state.isAuthenticated = true;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", action.payload);
-      }
+      tokenUtils.setToken(action.payload);
     },
     clearAuth: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-      }
+      tokenUtils.removeToken();
     },
   },
   extraReducers: (builder) => {
@@ -171,9 +164,7 @@ const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
-        }
+        tokenUtils.removeToken();
       });
   },
 });

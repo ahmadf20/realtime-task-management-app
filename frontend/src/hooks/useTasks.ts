@@ -8,6 +8,7 @@ import {
   updateTaskStatus,
   deleteTask,
 } from "../store/slices/tasksSlice";
+import { tokenUtils } from "../utils/tokenUtils";
 import { logout } from "../store/slices/authSlice";
 import {
   initializeWebSocket,
@@ -35,16 +36,9 @@ export const useTasks = () => {
     }
   }, [isAuthenticated, currentPage, dispatch]);
 
-  // Separate effect for handling authentication redirects
-  useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, isLoading, router]);
-
   useEffect(() => {
     if (isAuthenticated && user && !webSocketInitialized.current) {
-      const token = localStorage.getItem("token");
+      const token = tokenUtils.getToken();
 
       if (token) {
         initializeWebSocket(token, dispatch, user.id);
@@ -84,8 +78,8 @@ export const useTasks = () => {
       disconnectWebSocket(echo);
       dispatch(clearEcho());
     }
-    dispatch(logout());
-    // Don't push to login here - let the home page handle the redirect
+    await dispatch(logout()).unwrap();
+    router.push("/login");
   };
 
   const handlePageChange = (page: number) => {
