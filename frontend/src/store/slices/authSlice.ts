@@ -1,8 +1,6 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { api } from "../api";
-import { AxiosError } from "axios";
-import { HttpResponseError } from "@/types/http";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { tokenUtils } from "@/utils/tokenUtils";
+import { authApi } from "../services/authApi";
 
 export type User = {
   id: number;
@@ -15,89 +13,19 @@ export type User = {
 type AuthState = {
   user: User | null;
   token: string | null;
-  isLoading: boolean;
-  error: string | null;
   isAuthenticated: boolean;
-};
-
-type LoginResponse = {
-  access_token: string;
-  user: User;
 };
 
 const initialState: AuthState = {
   user: null,
-  token: null,
-  isLoading: false,
-  error: null,
-  isAuthenticated: false,
+  token: tokenUtils.getToken(),
+  isAuthenticated: !!tokenUtils.getToken(),
 };
-
-const token = tokenUtils.getToken();
-
-export const login = createAsyncThunk(
-  "auth/login",
-  async (
-    credentials: { email: string; password: string },
-    { rejectWithValue },
-  ) => {
-    try {
-      const response = await api.post<LoginResponse>("/api/login", credentials);
-      const { access_token, user } = response.data;
-
-      tokenUtils.setToken(access_token);
-
-      return { token: access_token, user };
-    } catch (e) {
-      const error = e as AxiosError<HttpResponseError>;
-      return rejectWithValue(error?.response?.data?.message || "Login failed");
-    }
-  },
-);
-
-export const logout = createAsyncThunk(
-  "auth/logout",
-  async (_, { rejectWithValue }) => {
-    try {
-      await api.post("/api/logout");
-      tokenUtils.removeToken();
-    } catch (e) {
-      const error = e as AxiosError<HttpResponseError>;
-      return rejectWithValue(error.response?.data?.message || "Logout failed");
-    }
-  },
-);
-
-export const getCurrentUser = createAsyncThunk(
-  "auth/getCurrentUser",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await api.get<User>("/api/user");
-      return response.data;
-    } catch (e) {
-      const error = e as AxiosError<HttpResponseError>;
-
-      if (error.response?.status === 401) {
-        return rejectWithValue("Session expired");
-      }
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to get user",
-      );
-    }
-  },
-);
 
 const authSlice = createSlice({
   name: "auth",
-  initialState: {
-    ...initialState,
-    token,
-    isAuthenticated: !!token,
-  },
+  initialState,
   reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload;
       state.isAuthenticated = true;
@@ -109,65 +37,35 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       tokenUtils.removeToken();
     },
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isAuthenticated = true;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Login
-      .addCase(login.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(login.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(login.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-        state.isAuthenticated = false;
-      })
-      // Logout
-      .addCase(logout.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(logout.fulfilled, (state) => {
-        state.isLoading = false;
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
-        state.error = null;
-      })
-      .addCase(logout.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-        // Even if logout fails on server, clear local auth
+      .addMatcher(
+        authApi.endpoints.login.matchFulfilled,
+        (state, { payload }) => {
+          state.token = payload.access_token;
+          state.user = payload.user;
+          state.isAuthenticated = true;
+        },
+      )
+      .addMatcher(authApi.endpoints.logout.matchFulfilled, (state) => {
         state.user = null;
         state.token = null;
         state.isAuthenticated = false;
       })
-      // Get current user
-      .addCase(getCurrentUser.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-        state.error = null;
-      })
-      .addCase(getCurrentUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload as string;
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
-        tokenUtils.removeToken();
-      });
+      .addMatcher(
+        authApi.endpoints.getCurrentUser.matchFulfilled,
+        (state, { payload }) => {
+          state.user = payload;
+          state.isAuthenticated = true;
+        },
+      );
   },
 });
 
-export const { clearError, setToken, clearAuth } = authSlice.actions;
+export const { setToken, clearAuth, setUser } = authSlice.actions;
 export default authSlice.reducer;

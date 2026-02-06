@@ -3,83 +3,125 @@ import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../store";
 import {
-  fetchTasks,
-  createTask,
-  updateTaskStatus,
-  deleteTask,
-} from "../store/slices/tasksSlice";
+  useGetTasksQuery,
+  useCreateTaskMutation,
+  useUpdateTaskStatusMutation,
+  useDeleteTaskMutation,
+} from "../store/services/tasksApi";
+import { useLogoutMutation } from "../store/services/authApi";
 import { tokenUtils } from "../utils/tokenUtils";
-import { logout } from "../store/slices/authSlice";
 import {
   initializeWebSocket,
   disconnectWebSocket,
 } from "../services/websocket";
-import { clearEcho } from "../store/slices/websocketSlice";
+import { setDisconnected } from "@/store/slices/websocketSlice";
+import Echo from "laravel-echo";
 
 export const useTasks = () => {
   const router = useRouter();
+  const echoInstance = useRef<Echo<"reverb">>(null);
   const dispatch = useDispatch<AppDispatch>();
+
   const { user, isAuthenticated } = useSelector(
     (state: RootState) => state.auth,
   );
-  const { tasks, isLoading, isFetching, isSaving, error, pagination } =
-    useSelector((state: RootState) => state.tasks);
-  const { isConnected, echo } = useSelector(
+
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    data: tasksData,
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useGetTasksQuery(currentPage, {
+    skip: !isAuthenticated,
+  });
+
+  const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
+  const [updateTaskStatus, { isLoading: isUpdating }] =
+    useUpdateTaskStatusMutation();
+  const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+  const [logoutMutation] = useLogoutMutation();
+
+  const { state, error: wsError } = useSelector(
     (state: RootState) => state.websocket,
   );
-  const [currentPage, setCurrentPage] = useState(1);
-  const webSocketInitialized = useRef(false);
+
+  const tasks = tasksData?.data || [];
+  const pagination = tasksData?.meta || {
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+  };
+
+  const error = queryError ? "Failed to fetch tasks" : wsError ? wsError : null;
 
   useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(fetchTasks(currentPage));
-    }
-  }, [isAuthenticated, currentPage, dispatch]);
-
-  useEffect(() => {
-    if (isAuthenticated && user && !webSocketInitialized.current) {
+    if (isAuthenticated && user && !echoInstance.current) {
       const token = tokenUtils.getToken();
 
       if (token) {
-        initializeWebSocket(token, dispatch, user.id);
-        webSocketInitialized.current = true;
+        const echo = initializeWebSocket(token, dispatch, user.id);
+        echoInstance.current = echo;
       }
     }
 
     return () => {
-      if (echo) {
-        disconnectWebSocket(echo);
-        dispatch(clearEcho());
-        webSocketInitialized.current = false;
+      if (echoInstance.current) {
+        disconnectWebSocket(echoInstance.current);
+        dispatch(setDisconnected());
+        echoInstance.current = null;
       }
     };
-  }, [isAuthenticated, user?.id, dispatch]);
+  }, [isAuthenticated, user?.id, dispatch, wsError, user]);
 
   const handleCreateTask = async (taskData: {
     title: string;
     description: string;
   }) => {
-    dispatch(createTask(taskData));
+    try {
+      await createTask(taskData).unwrap();
+    } catch (error) {
+      console.error("Failed to create task", error);
+      throw error;
+    }
   };
 
   const handleUpdateStatus = async (
     id: number,
     status: "pending" | "in_progress" | "done",
   ) => {
-    dispatch(updateTaskStatus({ id, status }));
+    try {
+      await updateTaskStatus({ id, status }).unwrap();
+    } catch (error) {
+      console.error("Failed to update status", error);
+    }
   };
 
   const handleDeleteTask = async (id: number) => {
-    dispatch(deleteTask(id));
+    try {
+      await deleteTask(id).unwrap();
+    } catch (error) {
+      console.error("Failed to delete task", error);
+    }
   };
 
   const handleLogout = async () => {
-    if (echo) {
-      disconnectWebSocket(echo);
-      dispatch(clearEcho());
+    if (echoInstance.current) {
+      disconnectWebSocket(echoInstance.current);
+      dispatch(setDisconnected());
+      echoInstance.current = null;
     }
-    await dispatch(logout()).unwrap();
-    router.push("/login");
+
+    try {
+      await logoutMutation().unwrap();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+      // Force redirect anyway
+      router.push("/login");
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -90,12 +132,12 @@ export const useTasks = () => {
     tasks,
     isLoading,
     isFetching,
-    isSaving,
+    isSaving: isCreating || isUpdating || isDeleting,
     error,
     pagination,
     user,
     isAuthenticated,
-    isConnected,
+    isConnected: state === "connected",
     currentPage,
     handleCreateTask,
     handleUpdateStatus,

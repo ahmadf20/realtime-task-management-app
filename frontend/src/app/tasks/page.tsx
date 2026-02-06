@@ -47,8 +47,8 @@ export default function TasksPage() {
             />
 
             <Pagination
-              currentPage={pagination.current_page}
-              lastPage={pagination.last_page}
+              currentPage={pagination.current_page ?? 1}
+              lastPage={pagination.last_page ?? 1}
               onPageChange={handlePageChange}
             />
           </div>

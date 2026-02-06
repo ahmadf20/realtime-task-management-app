@@ -1,18 +1,12 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import Echo from "laravel-echo";
 
 interface WebSocketState {
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  echo: Echo<"reverb"> | null;
+  state: "disconnected" | "connecting" | "connected";
+  error?: string;
 }
 
 const initialState: WebSocketState = {
-  isConnected: false,
-  isConnecting: false,
-  error: null,
-  echo: null,
+  state: "disconnected",
 };
 
 const websocketSlice = createSlice({
@@ -20,31 +14,23 @@ const websocketSlice = createSlice({
   initialState,
   reducers: {
     setConnecting: (state) => {
-      state.isConnecting = true;
-      state.error = null;
+      state.state = "connecting";
+      state.error = undefined;
     },
     setConnected: (state) => {
-      state.isConnected = true;
-      state.isConnecting = false;
-      state.error = null;
+      state.state = "connected";
+      state.error = undefined;
     },
     setDisconnected: (state) => {
-      state.isConnected = false;
-      state.isConnecting = false;
-      state.error = null;
+      state.state = "disconnected";
+      state.error = undefined;
     },
     setError: (state, action: PayloadAction<string>) => {
-      state.isConnecting = false;
+      state.state = "disconnected";
       state.error = action.payload;
     },
     clearError: (state) => {
-      state.error = null;
-    },
-    setEcho: (state, action: PayloadAction<Echo<"reverb">>) => {
-      state.echo = action.payload;
-    },
-    clearEcho: (state) => {
-      state.echo = null;
+      state.error = undefined;
     },
   },
 });
@@ -55,8 +41,6 @@ export const {
   setDisconnected,
   setError,
   clearError,
-  setEcho,
-  clearEcho,
 } = websocketSlice.actions;
 
 export default websocketSlice.reducer;

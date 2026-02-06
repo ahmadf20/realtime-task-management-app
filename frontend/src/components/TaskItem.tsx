@@ -1,5 +1,5 @@
 import React from "react";
-import { Task } from "../store/slices/tasksSlice";
+import { Task } from "@/types/task";
 
 interface TaskItemProps {
   task: Task;

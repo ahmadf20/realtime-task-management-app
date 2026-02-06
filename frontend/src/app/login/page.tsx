@@ -1,32 +1,35 @@
 "use client";
 
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../store";
-import { login } from "../../store/slices/authSlice";
+import { useLoginMutation } from "../../store/services/authApi";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
 
-  const { isLoading, error, isAuthenticated } = useSelector(
-    (state: RootState) => state.auth,
-  );
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/tasks");
-    }
-  }, [isAuthenticated, router]);
+  const [login, { isLoading }] = useLoginMutation();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrorMessage(null);
 
     const email = e.currentTarget.email.value;
     const password = e.currentTarget.password.value;
 
-    dispatch(login({ email, password }));
+    try {
+      await login({ email, password }).unwrap();
+      router.push("/tasks");
+    } catch (err) {
+      const error = err as { data?: { message?: string }; error?: string };
+      if (error?.data?.message) {
+        setErrorMessage(error.data.message);
+      } else if (error?.error) {
+        setErrorMessage(error.error);
+      } else {
+        setErrorMessage("Failed to login. Please check your credentials.");
+      }
+    }
   };
 
   return (
@@ -72,9 +75,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && (
+          {errorMessage && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
+              {errorMessage}
             </div>
           )}
 

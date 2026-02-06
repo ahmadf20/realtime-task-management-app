@@ -1,6 +1,6 @@
 "use client";
 
-import { Task } from "../store/slices/tasksSlice";
+import { Task } from "@/types/task";
 import TaskItem from "./TaskItem";
 import LoadingSpinner from "./ui/LoadingSpinner";
 

@@ -6,14 +6,9 @@ import {
   setConnected,
   setDisconnected,
   setError,
-  setEcho,
 } from "../store/slices/websocketSlice";
-import {
-  addTaskFromWebSocket,
-  updateTaskFromWebSocket,
-  removeTaskFromWebSocket,
-  Task,
-} from "../store/slices/tasksSlice";
+import { Task } from "@/types/task";
+import { tasksApi } from "../store/services/tasksApi";
 
 declare global {
   interface Window {
@@ -54,23 +49,33 @@ export const initializeWebSocket = (
     // Listen for task events on private channel
     echo
       .private(`tasks.${userId}`)
-      .listen(".task.created", (event: { task: Task }) => {
-        dispatch(addTaskFromWebSocket(event.task));
+      .listen(".task.created", () => {
+        dispatch(tasksApi.util.invalidateTags([{ type: "Task", id: "LIST" }]));
       })
       .listen(".task.status.updated", (event: { task: Task }) => {
-        dispatch(updateTaskFromWebSocket(event.task));
+        dispatch(
+          tasksApi.util.invalidateTags([
+            { type: "Task", id: event.task.id },
+            { type: "Task", id: "LIST" },
+          ]),
+        );
       })
       .listen(
         ".task.deleted",
         (event: { task_id: number; message: string }) => {
-          dispatch(removeTaskFromWebSocket(event.task_id));
+          dispatch(
+            tasksApi.util.invalidateTags([
+              { type: "Task", id: event.task_id },
+              { type: "Task", id: "LIST" },
+            ]),
+          );
         },
       );
 
     // Listen for connection events
     echo.connector.pusher.connection.bind("connected", () => {
       dispatch(setConnected());
-      dispatch(setEcho(echo));
+      // dispatch(setEcho(echo)); // setEcho not implemented in slice and echo is non-serializable
       console.log("Connected to WebSocket!");
     });
 

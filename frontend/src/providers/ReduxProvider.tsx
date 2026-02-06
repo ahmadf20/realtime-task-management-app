@@ -2,31 +2,15 @@
 
 import { Provider } from "react-redux";
 import { store } from "../store";
-import { useEffect } from "react";
-import { getCurrentUser } from "../store/slices/authSlice";
+import { PropsWithChildren, useEffect } from "react";
+import { authApi } from "../store/services/authApi";
 import { tokenUtils } from "../utils/tokenUtils";
 
-interface ReduxProviderProps {
-  children: React.ReactNode;
-}
-
-function AuthInitializer() {
-  const token = tokenUtils.getToken();
-
+export default function ReduxProvider({ children }: PropsWithChildren) {
   useEffect(() => {
-    if (token) {
-      store.dispatch(getCurrentUser());
-    }
-  }, [token]);
+    if (!tokenUtils.getToken()) return;
+    store.dispatch(authApi.endpoints.getCurrentUser.initiate());
+  }, []);
 
-  return null;
-}
-
-export default function ReduxProvider({ children }: ReduxProviderProps) {
-  return (
-    <Provider store={store}>
-      <AuthInitializer />
-      {children}
-    </Provider>
-  );
+  return <Provider store={store}>{children}</Provider>;
 }
