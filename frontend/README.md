@@ -112,7 +112,7 @@ src/
 
 - Redux Toolkit for predictable state updates
 - Separate slices for auth, tasks, and WebSocket
-- Async thunks for API calls
+- RTK Query for API calls with automatic caching
 - Error handling and loading states
 
 ## API Integration
