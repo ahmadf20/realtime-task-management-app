@@ -1,5 +1,3 @@
-import React from "react";
-
 interface PaginationProps {
   currentPage: number;
   lastPage: number;
@@ -19,8 +17,9 @@ export default function Pagination({
         {Array.from({ length: lastPage }, (_, i) => i + 1).map((page) => (
           <button
             key={page}
+            type="button"
             onClick={() => onPageChange(page)}
-            className={`px-3 py-2 rounded-md text-sm font-medium ${
+            className={`px-3 py-2 rounded-md text-sm font-medium cursor-pointer min-w-[36px] ${
               page === currentPage
                 ? "bg-indigo-600 text-white"
                 : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300"

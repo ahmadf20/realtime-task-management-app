@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../store";
 import {
@@ -14,11 +14,13 @@ import {
   initializeWebSocket,
   disconnectWebSocket,
 } from "../services/websocket";
-import { setDisconnected } from "@/store/slices/websocketSlice";
+import { apiSlice } from "../store/apiSlice";
+import { setDisconnected } from "../store/slices/websocketSlice";
 import Echo from "laravel-echo";
 
 export const useTasks = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const echoInstance = useRef<Echo<"reverb">>(null);
   const dispatch = useDispatch<AppDispatch>();
 
@@ -26,7 +28,7 @@ export const useTasks = () => {
     (state: RootState) => state.auth,
   );
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = parseInt(searchParams.get("page") || "1", 10);
 
   const {
     data: tasksData,
@@ -57,7 +59,7 @@ export const useTasks = () => {
   const error = queryError ? "Failed to fetch tasks" : wsError ? wsError : null;
 
   useEffect(() => {
-    if (isAuthenticated && user && !echoInstance.current) {
+    if (user && !echoInstance.current) {
       const token = tokenUtils.getToken();
 
       if (token) {
@@ -107,18 +109,13 @@ export const useTasks = () => {
   };
 
   const handleLogout = async () => {
-    if (echoInstance.current) {
-      disconnectWebSocket(echoInstance.current);
-      dispatch(setDisconnected());
-      echoInstance.current = null;
-    }
-
     await logoutMutation().unwrap();
+    dispatch(apiSlice.util.resetApiState());
     router.replace("/login");
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    router.replace(`/tasks?page=${page}`);
   };
 
   return {

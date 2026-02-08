@@ -5,7 +5,7 @@ import { HttpResponseWithPagination } from "@/types/http";
 export const tasksApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getTasks: builder.query<HttpResponseWithPagination<Task[]>, number>({
-      query: (page = 1) => `/api/tasks?page=${page}`,
+      query: (page = 1) => `/api/tasks?page=${page}&limit=20`,
       providesTags: (result) =>
         result?.data
           ? [
