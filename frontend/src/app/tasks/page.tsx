@@ -9,12 +9,13 @@ import Pagination from "../../components/ui/Pagination";
 export default function TasksPage() {
   const {
     tasks,
-    isLoading,
+    isFetching,
     isSaving,
     error,
     pagination,
     user,
     isConnected,
+    currentPage,
     handleCreateTask,
     handleUpdateStatus,
     handleDeleteTask,
@@ -59,7 +60,7 @@ export default function TasksPage() {
 
             <TaskList
               tasks={tasks}
-              isLoading={isLoading}
+              isLoading={isFetching}
               isAuthenticated={isConnected}
               onUpdateStatus={handleUpdateStatus}
               onDeleteTask={handleDeleteTask}
@@ -68,7 +69,7 @@ export default function TasksPage() {
             {/* Pagination */}
             <div className="mt-6">
               <Pagination
-                currentPage={pagination.current_page ?? 1}
+                currentPage={currentPage}
                 lastPage={pagination.last_page ?? 1}
                 onPageChange={handlePageChange}
               />
