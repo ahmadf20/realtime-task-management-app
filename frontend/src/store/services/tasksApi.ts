@@ -1,33 +1,45 @@
 import { apiSlice } from "../apiSlice";
 import { Task } from "@/types/task";
-import { HttpResponseWithPagination } from "@/types/http";
+import { HttpResponse, HttpResponseWithPagination } from "@/types/http";
+import { getCurrentPageFromUrl } from "@/utils/url";
 
 export const tasksApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getTasks: builder.query<HttpResponseWithPagination<Task[]>, number>({
       query: (page = 1) => `/api/tasks?page=${page}&limit=20`,
-      providesTags: (result) =>
-        result?.data
-          ? [
-              ...result.data.map(({ id }) => ({ type: "Task" as const, id })),
-              { type: "Task", id: "LIST" },
-            ]
-          : [{ type: "Task", id: "LIST" }],
+      providesTags: () => [{ type: "Task", id: "LIST" }],
+      keepUnusedDataFor: 10,
     }),
-    getTask: builder.query<Task, number>({
-      query: (id) => `/api/tasks/${id}`,
-      providesTags: (result, error, id) => [{ type: "Task", id }],
-    }),
-    createTask: builder.mutation<Task, Partial<Task>>({
+    createTask: builder.mutation<HttpResponse<Task>, Partial<Task>>({
       query: (body) => ({
         url: "/api/tasks",
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "Task", id: "LIST" }],
+      onQueryStarted: async (_newTask, { dispatch, queryFulfilled }) => {
+        try {
+          const { data: createdTask } = await queryFulfilled;
+
+          // Optimistically add to cache
+          dispatch(
+            tasksApi.util.updateQueryData("getTasks", 1, (draft) => {
+              const currentData = draft.data || [];
+              const updatedData = Array.isArray(currentData) ? currentData : [];
+
+              if (createdTask.data) {
+                updatedData.unshift(createdTask.data);
+              }
+
+              draft.data = updatedData;
+            }),
+          );
+        } catch {
+          // Let the error propagate - no optimistic update to revert
+        }
+      },
     }),
     updateTaskStatus: builder.mutation<
-      Task,
+      HttpResponse<Task>,
       { id: number; status: Task["status"] }
     >({
       query: ({ id, status }) => ({
@@ -35,27 +47,67 @@ export const tasksApi = apiSlice.injectEndpoints({
         method: "PATCH",
         body: { status },
       }),
-      invalidatesTags: (result, error, { id }) => [
-        { type: "Task", id },
-        { type: "Task", id: "LIST" },
-      ],
+      onQueryStarted: async ({ id, status }, { dispatch, queryFulfilled }) => {
+        // Optimistically update the cache
+        const currentPage = getCurrentPageFromUrl();
+        const patchResult = dispatch(
+          tasksApi.util.updateQueryData("getTasks", currentPage, (draft) => {
+            const currentData = draft.data || [];
+            const updatedData = Array.isArray(currentData) ? currentData : [];
+
+            const taskIndex = updatedData.findIndex((task) => task.id === id);
+
+            if (taskIndex !== -1) {
+              updatedData[taskIndex] = {
+                ...updatedData[taskIndex],
+                status,
+                updated_at: new Date().toISOString(),
+              };
+            }
+
+            draft.data = updatedData;
+          }),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          // Revert on error
+          patchResult.undo();
+        }
+      },
     }),
     deleteTask: builder.mutation<void, number>({
       query: (id) => ({
         url: `/api/tasks/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: (result, error, id) => [
-        { type: "Task", id },
-        { type: "Task", id: "LIST" },
-      ],
+      onQueryStarted: async (id, { dispatch, queryFulfilled }) => {
+        // Optimistically remove from cache
+        const currentPage = getCurrentPageFromUrl();
+        const patchResult = dispatch(
+          tasksApi.util.updateQueryData("getTasks", currentPage, (draft) => {
+            const currentData = draft.data || [];
+            const updatedData = Array.isArray(currentData) ? currentData : [];
+
+            const filteredData = updatedData.filter((task) => task.id !== id);
+            draft.data = filteredData;
+          }),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          // Revert on error
+          patchResult.undo();
+        }
+      },
     }),
   }),
 });
 
 export const {
   useGetTasksQuery,
-  useGetTaskQuery,
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
   useDeleteTaskMutation,

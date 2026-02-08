@@ -9,6 +9,7 @@ import {
 } from "../store/slices/websocketSlice";
 import { Task } from "@/types/task";
 import { tasksApi } from "../store/services/tasksApi";
+import { getCurrentPageFromUrl } from "@/utils/url";
 
 export const initializeWebSocket = (
   token: string,
@@ -39,25 +40,57 @@ export const initializeWebSocket = (
 
     echo
       .private(`tasks.${userId}`)
-      .listen(".task.created", () => {
-        dispatch(tasksApi.util.invalidateTags([{ type: "Task", id: "LIST" }]));
+      .listen(".task.created", (event: { task: Task }) => {
+        dispatch(
+          tasksApi.util.updateQueryData("getTasks", 1, (draft) => {
+            if (draft.data && draft.meta) {
+              // Avoid duplicates by checking if task already exists
+              const exists = draft.data.some(
+                (task) => task.id === event.task.id,
+              );
+
+              if (!exists) {
+                draft.data.unshift(event.task);
+                draft.meta.total = (draft.meta.total || 0) + 1;
+              }
+            }
+          }),
+        );
       })
       .listen(".task.status.updated", (event: { task: Task }) => {
+        const currentPage = getCurrentPageFromUrl();
+
         dispatch(
-          tasksApi.util.invalidateTags([
-            { type: "Task", id: event.task.id },
-            { type: "Task", id: "LIST" },
-          ]),
+          tasksApi.util.updateQueryData("getTasks", currentPage, (draft) => {
+            if (draft.data) {
+              const taskIndex = draft.data.findIndex(
+                (task) => task.id === event.task.id,
+              );
+
+              if (taskIndex !== -1) {
+                draft.data[taskIndex] = event.task;
+              }
+            }
+          }),
         );
       })
       .listen(
         ".task.deleted",
         (event: { task_id: number; message: string }) => {
+          const currentPage = getCurrentPageFromUrl();
+
           dispatch(
-            tasksApi.util.invalidateTags([
-              { type: "Task", id: event.task_id },
-              { type: "Task", id: "LIST" },
-            ]),
+            tasksApi.util.updateQueryData("getTasks", currentPage, (draft) => {
+              if (draft.data && draft.meta) {
+                const taskIndex = draft.data.findIndex(
+                  (task) => task.id === event.task_id,
+                );
+                if (taskIndex !== -1) {
+                  draft.data.splice(taskIndex, 1);
+                  draft.meta.total = Math.max(0, (draft.meta.total || 0) - 1);
+                }
+              }
+            }),
           );
         },
       );

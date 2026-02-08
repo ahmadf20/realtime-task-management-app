@@ -14,5 +14,6 @@ export const apiSlice = createApi({
     },
   }),
   tagTypes: ["Task", "User"],
+  keepUnusedDataFor: 10,
   endpoints: () => ({}),
 });
